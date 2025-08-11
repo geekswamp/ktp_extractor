@@ -5,7 +5,6 @@ import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:ktp_extractor/utils/ext.dart';
 import 'package:ktp_extractor/utils/utils.dart';
-import 'package:mrz_parser/mrz_parser.dart';
 
 import 'models/ktp_model.dart';
 import 'models/passport_model.dart';
