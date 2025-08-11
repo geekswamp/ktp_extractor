@@ -1,6 +1,6 @@
 name: ktp_extractor
 description: "A utility class for extracting information from KTP (Indonesian ID card) images."
-version: 0.0.2
+version: 0.0.3
 homepage: https://github.com/Irfan234-afif/ktp_extractor
 repository: https://github.com/Irfan234-afif/ktp_extractor
 
