@@ -18,7 +18,8 @@ extension TextLineExt on RecognizedText {
 
     for (final block in blocks) {
       for (final textLine in block.lines) {
-        final centerY = (textLine.boundingBox.bottom + textLine.boundingBox.top) / 2;
+        final centerY =
+            (textLine.boundingBox.bottom + textLine.boundingBox.top) / 2;
 
         if (centerY >= top && centerY <= bottom && textLine.text != line.text) {
           result.add(textLine);
@@ -121,5 +122,74 @@ extension StringExtension on String {
       return null;
     }
     return closestWord;
+  }
+
+  String cleanMrzText() {
+    return toUpperCase()
+        .replaceAll('«', '<')
+        .replaceAll('»', '<')
+        .replaceAll('‹', '<')
+        .replaceAll('›', '<')
+        .replaceAll('〈', '<')
+        .replaceAll('〉', '<')
+        .replaceAll('＜', '<')
+        .replaceAll('＞', '<')
+        .replaceAll(RegExp(r'[^A-Z0-9<]'), '')
+        .replaceAll('0', 'O')
+        .replaceAll('1', 'I')
+        .replaceAll('8', 'B')
+        .replaceAll('5', 'S');
+  }
+
+  String normalizeMrzLine() {
+    String normalized = cleanMrzText();
+    if (normalized.length < 44) {
+      normalized = normalized.padRight(44, '<');
+    } else if (normalized.length > 44) {
+      normalized = normalized.substring(0, 44);
+    }
+    return normalized;
+  }
+
+  List<String> extractMrzLines(String fullText) {
+    print("extract");
+    final lines = fullText
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+
+    List<String> mrzLines = [];
+
+    for (String line in lines) {
+      final cleanedLine = line.cleanMrzText();
+
+      // MRZ Line 1: Must start with P< for passport
+      bool isMrzLine1 = cleanedLine.startsWith('P<') ||
+          cleanedLine.startsWith('P«') ||
+          cleanedLine.startsWith('P‹') ||
+          cleanedLine.startsWith('P〈') ||
+          cleanedLine.startsWith('P＜');
+
+      // MRZ Line 2: Must have at least 3 consecutive < characters or variants
+      bool isMrzLine2 = RegExp(r'[<«»‹›〈〉＜＞]{3,}').hasMatch(cleanedLine) &&
+          cleanedLine.length >= 40 &&
+          !cleanedLine.startsWith('P') &&
+          RegExp(r'[A-Z0-9]{6,}').hasMatch(cleanedLine);
+
+      if (isMrzLine1 || (isMrzLine2 && cleanedLine.length >= 36)) {
+        print("line : ${line}");
+        print("cleanedLine : ${cleanedLine}");
+        print("isMrzLine1: $isMrzLine1, isMrzLine2: $isMrzLine2");
+        mrzLines.add(cleanedLine.normalizeMrzLine());
+      }
+    }
+
+    if (mrzLines.length >= 2) {
+      print("mrzline > 2 : ${mrzLines.toString()}");
+      return mrzLines.take(2).toList();
+    }
+
+    return mrzLines;
   }
 }
