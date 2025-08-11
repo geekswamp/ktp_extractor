@@ -57,6 +57,16 @@ post_install do |installer|
 end
 ```
 
+add to the `ios/Podfile` file:
+
+```ruby
+# Add language package you need to use
+pod 'GoogleMLKit/TextRecognitionChinese', '~> 7.0.0'
+pod 'GoogleMLKit/TextRecognitionDevanagari', '~> 7.0.0'
+pod 'GoogleMLKit/TextRecognitionJapanese', '~> 7.0.0'
+pod 'GoogleMLKit/TextRecognitionKorean', '~> 7.0.0'
+```
+
 Notice that the minimum `IPHONEOS_DEPLOYMENT_TARGET` is 15.5.0, you can set it to something newer but not older.
 
 ### Android
@@ -65,6 +75,17 @@ Notice that the minimum `IPHONEOS_DEPLOYMENT_TARGET` is 15.5.0, you can set it t
 - targetSdkVersion: 33
 - compileSdkVersion: 34
 
+Add to the `android/app/build.gradle`
+
+```gradle
+dependencies {
+    // Add language package you need to use
+    implementation 'com.google.mlkit:text-recognition-chinese:16.0.0'
+    implementation 'com.google.mlkit:text-recognition-devanagari:16.0.0'
+    implementation 'com.google.mlkit:text-recognition-japanese:16.0.0'
+    implementation 'com.google.mlkit:text-recognition-korean:16.0.0'
+}
+```
 
 ## Usage
 
