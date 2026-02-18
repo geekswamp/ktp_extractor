@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:string_similarity/string_similarity.dart';
 
@@ -152,7 +153,7 @@ extension StringExtension on String {
   }
 
   List<String> extractMrzLines(String fullText) {
-    print("extract");
+    debugPrint("extract");
     final lines = fullText
         .split('\n')
         .map((line) => line.trim())
@@ -178,15 +179,15 @@ extension StringExtension on String {
           RegExp(r'[A-Z0-9]{6,}').hasMatch(cleanedLine);
 
       if (isMrzLine1 || (isMrzLine2 && cleanedLine.length >= 36)) {
-        print("line : ${line}");
-        print("cleanedLine : ${cleanedLine}");
-        print("isMrzLine1: $isMrzLine1, isMrzLine2: $isMrzLine2");
+        debugPrint("line : $line");
+        debugPrint("cleanedLine : $cleanedLine");
+        debugPrint("isMrzLine1: $isMrzLine1, isMrzLine2: $isMrzLine2");
         mrzLines.add(cleanedLine.normalizeMrzLine());
       }
     }
 
     if (mrzLines.length >= 2) {
-      print("mrzline > 2 : ${mrzLines.toString()}");
+      debugPrint("mrzline > 2 : ${mrzLines.toString()}");
       return mrzLines.take(2).toList();
     }
 

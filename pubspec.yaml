@@ -5,25 +5,25 @@ homepage: https://github.com/Irfan234-afif/ktp_extractor
 repository: https://github.com/Irfan234-afif/ktp_extractor
 
 environment:
-  sdk: '>=3.4.1 <4.0.0'
+  sdk: ^3.11.0
   flutter: '>=3.3.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  plugin_platform_interface: ^2.0.2
-  equatable: ^2.0.5
-  google_mlkit_text_recognition: ^0.14.0
-  google_mlkit_object_detection: ^0.14.0
-  image: ^4.2.0
+  plugin_platform_interface: ^2.1.8
+  equatable: ^2.0.8
+  google_mlkit_text_recognition: ^0.15.1
+  google_mlkit_object_detection: ^0.15.1
+  image: ^4.8.0
   string_similarity: ^2.1.1
-  path: ^1.9.0
-  path_provider: ^2.1.4
+  path: ^1.9.1
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^6.0.0
   mocktail: ^1.0.4
 
 # For information on the generic Dart part of this file, see the

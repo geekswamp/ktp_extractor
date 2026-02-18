@@ -3,11 +3,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:ktp_extractor/models/ktp_model.dart';
+import 'package:ktp_extractor/models/passport_model.dart';
 import 'package:ktp_extractor/utils/ext.dart';
 import 'package:ktp_extractor/utils/utils.dart';
-
-import 'models/ktp_model.dart';
-import 'models/passport_model.dart';
 
 export 'models/ktp_model.dart';
 export 'models/passport_model.dart';
@@ -24,11 +23,11 @@ class KtpExtractor {
     _genderKey: ['LAKI-LAKI', 'PEREMPUAN'],
     _religionKey: [
       'ISLAM',
-      'KRISTEN',
+      'KRISTEN PROTESTAN',
       'KATOLIK',
       'HINDU',
       'BUDDHA',
-      'KHONGHUCU'
+      'KONGHUCU',
     ],
     _maritalKey: ['KAWIN', 'BELUM KAWIN'],
     _nationalityKey: ['WNI', 'WNA'],
@@ -43,17 +42,18 @@ class KtpExtractor {
   /// [imageFile]: The image file containing the KTP.
   static Future<File?> cropImageForKtp(File imageFile) async {
     final modelPath = await getAssetPath(
-        'packages/ktp_extractor/assets/custom_models/object_labeler.tflite');
+      'packages/ktp_extractor/assets/custom_models/object_labeler.tflite',
+    );
 
-    final options = LocalObjectDetectorOptions(
+    final ObjectDetectorOptions options = LocalObjectDetectorOptions(
       mode: DetectionMode.single,
       modelPath: modelPath,
       classifyObjects: true,
       multipleObjects: true,
     );
 
-    final ObjectDetector detector = ObjectDetector(options: options);
-    final InputImage inputImage = InputImage.fromFile(imageFile);
+    final ObjectDetector detector = .new(options: options);
+    final InputImage inputImage = .fromFile(imageFile);
     final result = await detector.processImage(inputImage);
 
     File? imageCropped;
@@ -61,8 +61,9 @@ class KtpExtractor {
     // Iterate over detected objects to find the KTP.
     for (final object in result) {
       if (kDebugMode) {
-        print('Object found: ${object.labels.map((e) => e.text)}');
+        debugPrint('Object found: ${object.labels.map((e) => e.text)}');
       }
+
       if (object.labels.firstOrNull?.text == "Driver's license") {
         // Crop the image to the detected KTP area.
         imageCropped = await cropImage(File(inputImage.filePath!), object);
@@ -81,10 +82,12 @@ class KtpExtractor {
   ///
   /// [imageFile]: The image file of the KTP.
   static Future<KtpModel> extractKtp(File imageFile) async {
-    final TextRecognizer recognizer = TextRecognizer();
-    final InputImage inputImage = InputImage.fromFile(imageFile);
-    final RecognizedText recognizedText =
-        await recognizer.processImage(inputImage);
+    final TextRecognizer recognizer = .new();
+    final InputImage inputImage = .fromFile(imageFile);
+    final RecognizedText recognizedText = await recognizer.processImage(
+      inputImage,
+    );
+
     await recognizer.close();
 
     return extractFromOcr(recognizedText);
@@ -116,7 +119,7 @@ class KtpExtractor {
     String? validUntil;
 
     if (kDebugMode) {
-      print('Result text: ${recognizedText.text}');
+      debugPrint('Result text: ${recognizedText.text}');
     }
 
     // Iterate over text blocks and lines to extract information.
@@ -129,8 +132,8 @@ class KtpExtractor {
           final lineText = text.cleanse('provinsi').filterNumberToAlphabet();
           province = lineText;
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
         // Extract City.
@@ -140,8 +143,8 @@ class KtpExtractor {
           final lineText = text.filterNumberToAlphabet();
           city = lineText;
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -149,17 +152,17 @@ class KtpExtractor {
         if (nik == null && text.filterNumbersOnly().length == 16) {
           nik = text.filterNumbersOnly();
           if (kDebugMode) {
-            print('NIK Found: ${line.text}');
-            print('NIK Filtered: $nik');
+            debugPrint('NIK Found: ${line.text}');
+            debugPrint('NIK Filtered: $nik');
           }
         }
         if (nik == null && text.toLowerCase().startsWith('nik')) {
           final lineText = recognizedText.findAndClean(line, 'NIK');
           nik = lineText?.filterNumbersOnly().removeAlphabet();
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
-            print('Line Text Filtered: $nik');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
+            debugPrint('Line Text Filtered: $nik');
           }
         }
 
@@ -170,8 +173,8 @@ class KtpExtractor {
               ?.filterNumberToAlphabet();
           name = lineText;
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -179,10 +182,13 @@ class KtpExtractor {
         if (text.toLowerCase().contains(RegExp('tempat')) &&
             text.toLowerCase().contains(RegExp('lahir'))) {
           if (kDebugMode) {
-            print('Text: $text');
+            debugPrint('Text: $text');
           }
-          String? lineText =
-              recognizedText.findAndClean(line, 'tempat/tgl lahir');
+
+          String? lineText = recognizedText.findAndClean(
+            line,
+            'tempat/tgl lahir',
+          );
           if (lineText != null) {
             lineText = lineText.cleanse('tempat');
             lineText = lineText.cleanse('tgl lahir');
@@ -190,18 +196,21 @@ class KtpExtractor {
               lineText = lineText.replaceAll('/', '');
             }
           }
+
           final List<String> splitBirth = lineText?.split(',') ?? [];
           if (kDebugMode) {
-            print('Split Place of Birth: $splitBirth');
+            debugPrint('Split Place of Birth: $splitBirth');
           }
+
           if (splitBirth.isNotEmpty) {
             placeBirth = splitBirth[0].filterNumberToAlphabet();
             if (splitBirth.length > 1) {
               birthDay = splitBirth[1].filterAlphabetToNumber();
             }
           }
+
           if (kDebugMode) {
-            print('Line Text: $lineText');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -213,8 +222,8 @@ class KtpExtractor {
               .correctWord(_expectedWords[_genderKey]!);
           gender = lineText;
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -223,8 +232,8 @@ class KtpExtractor {
           final lineText = recognizedText.findAndClean(line, 'alamat');
           address = lineText;
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -232,8 +241,9 @@ class KtpExtractor {
         if (text.toLowerCase().contains(RegExp('rt')) &&
             text.toLowerCase().contains(RegExp('rw'))) {
           if (kDebugMode) {
-            print('Text: $text');
+            debugPrint('Text: $text');
           }
+
           String? lineText = recognizedText.findAndClean(line, 'RTRW');
           if (lineText != null) {
             lineText = lineText.cleanse('rt');
@@ -244,9 +254,9 @@ class KtpExtractor {
           }
           final List<String> splitRtRw =
               lineText?.filterAlphabetToNumber().removeAlphabet().split('/') ??
-                  [];
+              [];
           if (kDebugMode) {
-            print('Split RT/RW: $splitRtRw');
+            debugPrint('Split RT/RW: $splitRtRw');
           }
           if (splitRtRw.isNotEmpty) {
             rt = splitRtRw[0];
@@ -259,8 +269,9 @@ class KtpExtractor {
               }
             }
           }
+
           if (kDebugMode) {
-            print('Line Text: $lineText');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -269,8 +280,8 @@ class KtpExtractor {
           final lineText = recognizedText.findAndClean(line, 'kel/desa');
           subDistrict = lineText?.filterNumberToAlphabet();
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -279,33 +290,37 @@ class KtpExtractor {
           final lineText = recognizedText.findAndClean(line, 'kecamatan');
           district = lineText?.filterNumberToAlphabet();
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
         // Extract Religion.
         if (text.toLowerCase().startsWith('agama')) {
           final lineText = recognizedText.findAndClean(line, 'agama');
-          religion = lineText
-              ?.filterNumberToAlphabet()
-              .correctWord(_expectedWords[_religionKey]!);
+          religion = lineText?.filterNumberToAlphabet().correctWord(
+            _expectedWords[_religionKey]!,
+          );
+
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
         // Extract Marital Status.
         if (text.toLowerCase().startsWith('status perkawinan')) {
-          final lineText =
-              recognizedText.findAndClean(line, 'status perkawinan');
-          marital = lineText
-              ?.filterNumberToAlphabet()
-              .correctWord(_expectedWords[_maritalKey]!);
+          final lineText = recognizedText.findAndClean(
+            line,
+            'status perkawinan',
+          );
+          marital = lineText?.filterNumberToAlphabet().correctWord(
+            _expectedWords[_maritalKey]!,
+          );
+
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -313,21 +328,23 @@ class KtpExtractor {
         if (text.toLowerCase().startsWith('pekerjaan')) {
           final lineText = recognizedText.findAndClean(line, 'pekerjaan');
           occupation = lineText?.filterNumberToAlphabet();
+
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
         // Extract Nationality.
         if (text.toLowerCase().startsWith('kewarganegaraan')) {
           final lineText = recognizedText.findAndClean(line, 'kewarganegaraan');
-          nationality = lineText
-              ?.filterNumberToAlphabet()
-              .correctWord(_expectedWords[_nationalityKey]!);
+          nationality = lineText?.filterNumberToAlphabet().correctWord(
+            _expectedWords[_nationalityKey]!,
+          );
+
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
 
@@ -336,38 +353,38 @@ class KtpExtractor {
           final lineText = recognizedText.findAndClean(line, 'berlaku hingga');
           validUntil = lineText?.filterNumberToAlphabet();
           if (kDebugMode) {
-            print('Text: $text');
-            print('Line Text: $lineText');
+            debugPrint('Text: $text');
+            debugPrint('Line Text: $lineText');
           }
         }
       }
     }
 
     if (kDebugMode) {
-      print('========================================');
-      print('=============== RESULT =================');
-      print('NIK: $nik');
-      print('Name: $name');
-      print('Birth Day: $birthDay');
-      print('Place of Birth: $placeBirth');
-      print('Gender: $gender');
-      print('Address: $address');
-      print('RT/RW: $rt / $rw');
-      print('Sub-District: $subDistrict');
-      print('District: $district');
-      print('Province: $province');
-      print('City: $city');
-      print('Religion: $religion');
-      print('Marital Status: $marital');
-      print('Occupation: $occupation');
-      print('Nationality: $nationality');
-      print('Valid Until: $validUntil');
-      print('============= END RESULT ===============');
-      print('========================================');
+      debugPrint('========================================');
+      debugPrint('=============== RESULT =================');
+      debugPrint('NIK: $nik');
+      debugPrint('Name: $name');
+      debugPrint('Birth Day: $birthDay');
+      debugPrint('Place of Birth: $placeBirth');
+      debugPrint('Gender: $gender');
+      debugPrint('Address: $address');
+      debugPrint('RT/RW: $rt / $rw');
+      debugPrint('Sub-District: $subDistrict');
+      debugPrint('District: $district');
+      debugPrint('Province: $province');
+      debugPrint('City: $city');
+      debugPrint('Religion: $religion');
+      debugPrint('Marital Status: $marital');
+      debugPrint('Occupation: $occupation');
+      debugPrint('Nationality: $nationality');
+      debugPrint('Valid Until: $validUntil');
+      debugPrint('============= END RESULT ===============');
+      debugPrint('========================================');
     }
 
     // Return a KtpModel containing the extracted information.
-    return KtpModel(
+    return .new(
       address: address,
       district: district,
       gender: gender,
@@ -395,34 +412,37 @@ class KtpExtractor {
   ///
   /// [imageFile]: The image file containing the passport.
   static Future<File?> cropImageForPassport(File imageFile) async {
-    final modelPath = await getAssetPath(
-        'packages/ktp_extractor/assets/custom_models/object_labeler.tflite');
-    final options = LocalObjectDetectorOptions(
+    final String modelPath = await getAssetPath(
+      'packages/ktp_extractor/assets/custom_models/object_labeler.tflite',
+    );
+    final ObjectDetectorOptions options = LocalObjectDetectorOptions(
       modelPath: modelPath,
       mode: DetectionMode.single,
       classifyObjects: false,
       multipleObjects: false,
     );
 
-    final ObjectDetector detector = ObjectDetector(options: options);
-    final InputImage inputImage = InputImage.fromFile(imageFile);
+    final ObjectDetector detector = .new(options: options);
+    final InputImage inputImage = .fromFile(imageFile);
     final result = await detector.processImage(inputImage);
 
     File? mrzCropped;
 
     for (final object in result) {
       if (kDebugMode) {
-        print('Object found for passport: ${object.boundingBox}');
+        debugPrint('Object found for passport: ${object.boundingBox}');
       }
 
       if (object.labels.firstOrNull?.text == "Driver's license") {
         final aspectRatio =
             (object.boundingBox.right - object.boundingBox.left) /
-                (object.boundingBox.bottom - object.boundingBox.top);
+            (object.boundingBox.bottom - object.boundingBox.top);
 
         if (aspectRatio > 1.2 && aspectRatio < 2.0) {
-          mrzCropped =
-              await cropPassportMrz(File(inputImage.filePath!), object);
+          mrzCropped = await cropPassportMrz(
+            File(inputImage.filePath!),
+            object,
+          );
           break;
         }
       }
@@ -439,10 +459,11 @@ class KtpExtractor {
   ///
   /// [imageFile]: The image file of the passport MRZ.
   static Future<PassportModel> extractPassport(File imageFile) async {
-    final TextRecognizer recognizer = TextRecognizer();
-    final InputImage inputImage = InputImage.fromFile(imageFile);
-    final RecognizedText recognizedText =
-        await recognizer.processImage(inputImage);
+    final TextRecognizer recognizer = .new();
+    final InputImage inputImage = .fromFile(imageFile);
+    final RecognizedText recognizedText = await recognizer.processImage(
+      inputImage,
+    );
     await recognizer.close();
 
     return extractMrzFromOcr(recognizedText);
@@ -456,15 +477,16 @@ class KtpExtractor {
   /// [recognizedText]: The recognized text from OCR.
   static PassportModel extractMrzFromOcr(RecognizedText recognizedText) {
     if (kDebugMode) {
-      print('MRZ Result text: ${recognizedText.text}');
+      debugPrint('MRZ Result text: ${recognizedText.text}');
     }
 
-    final List<String> mrzLines =
-        recognizedText.text.extractMrzLines(recognizedText.text);
+    final List<String> mrzLines = recognizedText.text.extractMrzLines(
+      recognizedText.text,
+    );
 
     if (mrzLines.length < 2) {
       if (kDebugMode) {
-        print('Insufficient MRZ lines found: ${mrzLines.length}');
+        debugPrint('Insufficient MRZ lines found: ${mrzLines.length}');
       }
       return const PassportModel();
     }
@@ -473,8 +495,8 @@ class KtpExtractor {
     final String line2 = mrzLines[1];
 
     if (kDebugMode) {
-      print('MRZ Line 1: $line1');
-      print('MRZ Line 2: $line2');
+      debugPrint('MRZ Line 1: $line1');
+      debugPrint('MRZ Line 2: $line2');
     }
 
     String? documentType;
@@ -512,10 +534,12 @@ class KtpExtractor {
 
       final passportCheckDigit = line2.substring(9, 10);
       if (passportNumber != null) {
-        final isValidPassport =
-            validateMrzChecksum(passportNumber, passportCheckDigit);
+        final isValidPassport = validateMrzChecksum(
+          passportNumber,
+          passportCheckDigit,
+        );
         if (kDebugMode) {
-          print('Passport number validation: $isValidPassport');
+          debugPrint('Passport number validation: $isValidPassport');
         }
       }
 
@@ -528,7 +552,7 @@ class KtpExtractor {
         final birthCheckDigit = line2.substring(19, 20);
         final isValidBirth = validateMrzChecksum(birthDateRaw, birthCheckDigit);
         if (kDebugMode) {
-          print('Birth date validation: $isValidBirth');
+          debugPrint('Birth date validation: $isValidBirth');
         }
       }
 
@@ -539,10 +563,12 @@ class KtpExtractor {
       if (expiryDateRaw.replaceAll('<', '').length == 6) {
         expiryDate = expiryDateRaw;
         final expiryCheckDigit = line2.substring(27, 28);
-        final isValidExpiry =
-            validateMrzChecksum(expiryDateRaw, expiryCheckDigit);
+        final isValidExpiry = validateMrzChecksum(
+          expiryDateRaw,
+          expiryCheckDigit,
+        );
         if (kDebugMode) {
-          print('Expiry date validation: $isValidExpiry');
+          debugPrint('Expiry date validation: $isValidExpiry');
         }
       }
 
@@ -555,24 +581,24 @@ class KtpExtractor {
     }
 
     if (kDebugMode) {
-      print('========================================');
-      print('============ MRZ RESULT ================');
-      print('Document Type: $documentType');
-      print('Issuing Country: $issuingCountry');
-      print('Surname: $surname');
-      print('Given Names: $givenNames');
-      print('Passport Number: $passportNumber');
-      print('Nationality: $nationality');
-      print('Birth Date: $birthDate');
-      print('Gender: $gender');
-      print('Expiry Date: $expiryDate');
-      print('Personal Number: $personalNumber');
-      print('Composite Check Digit: $compositeCheckDigit');
-      print('=========== END MRZ RESULT =============');
-      print('========================================');
+      debugPrint('========================================');
+      debugPrint('============ MRZ RESULT ================');
+      debugPrint('Document Type: $documentType');
+      debugPrint('Issuing Country: $issuingCountry');
+      debugPrint('Surname: $surname');
+      debugPrint('Given Names: $givenNames');
+      debugPrint('Passport Number: $passportNumber');
+      debugPrint('Nationality: $nationality');
+      debugPrint('Birth Date: $birthDate');
+      debugPrint('Gender: $gender');
+      debugPrint('Expiry Date: $expiryDate');
+      debugPrint('Personal Number: $personalNumber');
+      debugPrint('Composite Check Digit: $compositeCheckDigit');
+      debugPrint('=========== END MRZ RESULT =============');
+      debugPrint('========================================');
     }
 
-    return PassportModel(
+    return .new(
       documentType: documentType,
       issuingCountry: issuingCountry,
       surname: surname,
